@@ -38,7 +38,7 @@ def create_app(test_config=None):
 
     return jsonify({
       'success': True,
-      'categories': [category.format() for category in categories]
+      'categories': Category.to_dict(categories)
     })
   
   '''
@@ -103,6 +103,24 @@ def create_app(test_config=None):
   the form will clear and the question will appear at the end of the last page
   of the questions list in the "List" tab.  
   '''
+  @app.route("/questions", methods=["POST"])
+  def create_question():
+
+    data = request.get_json()
+    new_question = Question(
+      question = data.get("question"),
+      answer = data.get("answer"),
+      difficulty = data.get("difficulty"),
+      category = data.get("category")
+    )
+    
+    new_question.insert()
+
+    return jsonify({
+      "success": True,
+      "created": new_question.id,
+      "total_questions": Question.query.count()
+    })
 
   '''
   @TODO: 
@@ -159,6 +177,14 @@ def create_app(test_config=None):
       "code": 422,
       "message": "Request Cannot Be Processed"
     }), 422
+
+  @app.errorhandler(405)
+  def page_not_found(error):
+    return jsonify({
+      "success": False,
+      "code": 405,
+      "message": "Method Not Allowed"
+    }), 405
 
   return app
 

@@ -18,6 +18,13 @@ class TriviaTestCase(unittest.TestCase):
         self.database_path = "postgresql://{}/{}".format('postgres@localhost:5432', self.database_name)
         setup_db(self.app, self.database_path)
 
+        self.new_question = {
+            'question' : "Will this test pass?",
+            'answer': "Yes, Definitely!",
+            'difficulty': 1,
+            'category': 1
+        }
+
         # binds the app to the current context
         with self.app.app_context():
             self.db = SQLAlchemy()
@@ -60,17 +67,42 @@ class TriviaTestCase(unittest.TestCase):
         self.assertEqual(data['success'], False)
         self.assertEqual(data['message'], "Page Not Found")
 
-    def test_delete_question(self):
-        res = self.client().delete('/questions/2')
-        data = json.loads(res.data)
+    def test_add_question(self):
 
-        question = Question.query.filter(Question.id == 2).one_or_none()
-        questions = Question.query.order_by(Question.id).paginate(1, 10, False)
+        total_questions = Question.query.count()
+        
+        res = self.client().post('/questions', json = self.new_question)
+        data = json.loads(res.data)
 
         self.assertEqual(res.status_code, 200)
         self.assertEqual(data['success'], True)
-        self.assertEqual(data['deleted_id'], 2)
-        self.assertEqual(data['total_questions'], questions.total)
+        self.assertTrue(data['created'])
+        self.assertEqual(data['total_questions'], total_questions + 1)
+
+    def test_405_if_add_question_not_allowed(self):
+
+        res = self.client().post('/questions/20', json = self.new_question)
+        data = json.loads(res.data)
+
+        self.assertEqual(res.status_code, 405)
+        self.assertEqual(data['success'], False)
+        self.assertEqual(data['message'], "Method Not Allowed")
+
+    def test_delete_question(self):
+
+        total_questions = Question.query.count()
+        new_question = Question.query.filter_by(question="Will this test pass?").one_or_none()
+
+        res = self.client().delete('/questions/'+str(new_question.id))
+        data = json.loads(res.data)
+
+        question = Question.query.filter(Question.id == new_question.id).one_or_none()
+        
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data['success'], True)
+        self.assertEqual(data['deleted_id'], new_question.id)
+        self.assertEqual(data['total_questions'], total_questions - 1)
+        self.assertEqual(question, None)
 
 
     def test_422_if_question_not_found(self):
@@ -80,7 +112,6 @@ class TriviaTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 422)
         self.assertEqual(data['success'], False)
         self.assertEqual(data['message'], "Request Cannot Be Processed")
-
 
 # Make the tests conveniently executable
 if __name__ == "__main__":
