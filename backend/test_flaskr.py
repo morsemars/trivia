@@ -113,6 +113,61 @@ class TriviaTestCase(unittest.TestCase):
         self.assertEqual(data['success'], False)
         self.assertEqual(data['message'], "Request Cannot Be Processed")
 
+    def test_search_question_by_search_term(self):
+
+        results = Question.query.filter(Question.question.ilike('%title%')).all()
+        search = {
+            "searchTerm": "Title"
+        }
+        res = self.client().post('/questions', json=search)
+        data = json.loads(res.data)
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data['success'], True)
+        self.assertTrue(data['questions'])
+        self.assertEqual(data['total_questions'], len(results))
+        #self.assertTrue(data['current_category'])
+
+    def test_search_questions_by_category(self):
+
+        CATEGORY_ID = 1
+        category = Category.query.filter_by(id = CATEGORY_ID).first()
+        questions = Question.query.filter_by(category = CATEGORY_ID).all()
+        
+        res = self.client().get('/categories/1/questions')
+        data = json.loads(res.data)
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data['success'], True)
+        self.assertTrue(data['questions'])
+        self.assertEqual(data['total_questions'], len(questions))
+        self.assertEqual(data['current_category'], category.type)
+
+    def test_404_if_category_not_found_for_search_questions_by_category(self):
+        res = self.client().get('/categories/1000000/questions')
+        data = json.loads(res.data)
+
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(data['success'], False)
+        self.assertEqual(data['message'], "Page Not Found")
+
+    def test_quiz(self):
+
+        quiz = {
+            "previous_questions": [],
+            "quiz_category": {
+                "id": 1,
+                "type": "Science"
+            }
+        }
+
+        res = self.client().post('/quizzes', json = quiz)
+        data = json.loads(res.data)
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data['success'], True)
+        self.assertTrue(data['question'])
+
 # Make the tests conveniently executable
 if __name__ == "__main__":
     unittest.main()
