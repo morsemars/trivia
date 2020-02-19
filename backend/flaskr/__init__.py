@@ -16,18 +16,31 @@ def create_app(test_config=None):
   '''
   @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
   '''
+  CORS(app,resources={r"/*": {"origins": "*"}})
+  
 
   '''
   @TODO: Use the after_request decorator to set Access-Control-Allow
   '''
+  @app.after_request
+  def after_request(response):
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PATCH,POST,DELETE,OPTIONS')
+    return response
 
   '''
   @TODO: 
   Create an endpoint to handle GET requests 
   for all available categories.
   '''
+  @app.route('/categories')
+  def get_categories():
+    categories = Category.query.all()
 
-
+    return jsonify({
+      'success': True,
+      'categories': [category.format() for category in categories]
+    })
+  
   '''
   @TODO: 
   Create an endpoint to handle GET requests for questions, 
@@ -41,6 +54,22 @@ def create_app(test_config=None):
   Clicking on the page numbers should update the questions. 
   '''
 
+  @app.route('/questions')
+  def get_questions():
+
+    page = request.args.get('page', 1, type=int)
+    questions = Question.query.order_by(Question.id).paginate(page,QUESTIONS_PER_PAGE, True)
+    categories = Category.query.all()
+
+    return jsonify({
+      'success': True,
+      'questions': [question.format() for question in questions.items],
+      'total_questions': questions.total,
+      'categories': Category.to_dict(categories),
+      'current_category': None
+    })
+
+
   '''
   @TODO: 
   Create an endpoint to DELETE question using a question ID. 
@@ -48,6 +77,21 @@ def create_app(test_config=None):
   TEST: When you click the trash icon next to a question, the question will be removed.
   This removal will persist in the database and when you refresh the page. 
   '''
+  @app.route("/questions/<id>", methods=["DELETE"])
+  def delete_question(id):
+    question = Question.query.filter_by(id=id).one_or_none()
+    
+    if question is None:
+      abort(422)
+
+    question.delete()
+    total_questions = Question.query.count()
+
+    return jsonify({
+      "success": True,
+      "deleted_id": int(id),
+      "total_questions": total_questions
+    })
 
   '''
   @TODO: 
@@ -98,7 +142,24 @@ def create_app(test_config=None):
   Create error handlers for all expected errors 
   including 404 and 422. 
   '''
-  
+
+  @app.errorhandler(404)
+  def page_not_found(error):
+    return jsonify({
+      "success": False,
+      "code": 404,
+      "message": "Page Not Found"
+    }), 404
+
+
+  @app.errorhandler(422)
+  def page_not_found(error):
+    return jsonify({
+      "success": False,
+      "code": 422,
+      "message": "Request Cannot Be Processed"
+    }), 422
+
   return app
 
     
